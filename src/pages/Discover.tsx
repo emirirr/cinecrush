@@ -6,12 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Filter, Heart } from "lucide-react";
 import MovieCard from "@/components/shared/MovieCard";
 import { mockMovies, Movie } from "@/data/mockMovies";
+import { searchMovies, AppMovie, setOmdbApiKeyRuntime } from "@/lib/omdb";
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("all");
   const [sortBy, setSortBy] = useState("rating");
   const [favoriteMovies, setFavoriteMovies] = useState<string[]>([]);
+  const [remoteMovies, setRemoteMovies] = useState<AppMovie[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Load favorites from localStorage on mount
   useEffect(() => {
@@ -31,13 +34,51 @@ const Discover = () => {
     } catch {}
   }, [favoriteMovies]);
 
+  // Persist API key from env if present
+  useEffect(() => {
+    const envKey = (import.meta as any).env?.VITE_OMDB_API_KEY as string | undefined;
+    if (envKey) {
+      try { setOmdbApiKeyRuntime(envKey); } catch {}
+    }
+  }, []);
+
+  // Search OMDb when query changes
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setRemoteMovies(null);
+      return;
+    }
+    let active = true;
+    setIsSearching(true);
+    searchMovies(q, 18)
+      .then((res) => {
+        if (!active) return;
+        setRemoteMovies(res);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRemoteMovies([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setIsSearching(false);
+      });
+    return () => { active = false; };
+  }, [searchQuery]);
+
   // Get all unique genres
   const allGenres = Array.from(
     new Set(mockMovies.flatMap(movie => movie.genre))
   ).sort();
 
+  // Choose source: OMDb results if searching, else mock
+  const sourceMovies: (Movie | AppMovie)[] = remoteMovies && searchQuery.trim()
+    ? remoteMovies
+    : mockMovies;
+
   // Filter and sort movies
-  const filteredMovies = mockMovies
+  const filteredMovies = sourceMovies
     .filter(movie => {
       const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            movie.genre.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -145,7 +186,7 @@ const Discover = () => {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-muted-foreground">
-            Showing {filteredMovies.length} movie{filteredMovies.length !== 1 ? 's' : ''}
+            {isSearching ? "Searching OMDb…" : `Showing ${filteredMovies.length} movie${filteredMovies.length !== 1 ? 's' : ''}`}
             {selectedGenre !== "all" && ` in ${selectedGenre}`}
             {searchQuery && ` matching "${searchQuery}"`}
           </p>
@@ -158,9 +199,12 @@ const Discover = () => {
               <MovieCard
                 key={movie.id}
                 movie={movie}
-                showFavoriteButton={true}
+                showFavoriteButton={!(remoteMovies && searchQuery.trim())}
                 isFavorite={favoriteMovies.includes(movie.id)}
-                onToggleFavorite={() => toggleFavorite(movie.id)}
+                onToggleFavorite={() => {
+                  if (remoteMovies && searchQuery.trim()) return;
+                  toggleFavorite(movie.id);
+                }}
                 onClick={() => {
                   // Could open movie details modal here
                   console.log("Movie clicked:", movie.title);

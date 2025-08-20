@@ -1,14 +1,80 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Heart, MessageCircle, Calendar, Star } from "lucide-react";
-import { mockUsers, mockMovies, getMoviesByIds, getSharedMovies } from "@/data/mockMovies";
+import { getMoviesByIds, getSharedMovies } from "@/data/mockMovies";
+import { auth, db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+
+type MatchUser = {
+  id: string;
+  name: string;
+  age?: number | string;
+  bio?: string;
+  avatar?: string;
+  favoriteMovies?: string[];
+  location?: string;
+};
 
 const Matches = () => {
-  // Mock matches data (in real app, this would come from user's matches)
-  const userMatches = mockUsers.filter(u => (JSON.parse(localStorage.getItem("cinecrush:matches") || "[]") as string[]).includes(u.id)).slice(0, 10);
-  const currentUserMovies = ["1", "3", "4", "6"]; // Mock current user's movies
+  const [userMatches, setUserMatches] = useState<MatchUser[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  let currentUserMovies: string[] = [];
+  try {
+    const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+    if (Array.isArray(fav)) currentUserMovies = fav;
+  } catch {}
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const liked = (JSON.parse(localStorage.getItem("cinecrush:matches") || "[]") as string[]) || [];
+        if (liked.length === 0) {
+          if (mounted) {
+            setUserMatches([]);
+          }
+          return;
+        }
+        const snap = await getDocs(collection(db, "profiles"));
+        const users: MatchUser[] = snap.docs.map(d => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data?.name || "",
+            age: data?.age,
+            bio: data?.bio || "",
+            avatar: data?.avatar || "",
+            favoriteMovies: Array.isArray(data?.favoriteMovies) ? data.favoriteMovies : [],
+            location: data?.location || "",
+          } as MatchUser;
+        });
+        const filtered = users.filter(u => liked.includes(u.id));
+        if (mounted) setUserMatches(filtered.slice(0, 10));
+      } catch {
+        if (mounted) setUserMatches([]);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">💫</div>
+          <h2 className="text-2xl font-bold mb-2">Loading matches…</h2>
+          <p className="text-muted-foreground mb-6">Fetching your connections</p>
+        </div>
+      </div>
+    );
+  }
 
   if (userMatches.length === 0) {
     return (
@@ -41,9 +107,10 @@ const Matches = () => {
         {/* Matches Grid */}
         <div className="space-y-6">
           {userMatches.map((match) => {
-            const sharedMovieIds = getSharedMovies(currentUserMovies, match.favoriteMovies);
+            const theirFavorites = match.favoriteMovies || [];
+            const sharedMovieIds = getSharedMovies(currentUserMovies, theirFavorites);
             const sharedMovies = getMoviesByIds(sharedMovieIds);
-            const matchUserMovies = getMoviesByIds(match.favoriteMovies);
+            const matchUserMovies = getMoviesByIds(theirFavorites);
 
             return (
               <Card key={match.id} className="card-movie">
@@ -52,7 +119,7 @@ const Matches = () => {
                     {/* Profile Section */}
                     <div className="flex items-center space-x-4 md:w-1/3">
                       <img
-                        src={match.avatar}
+                        src={match.avatar || "/placeholder.svg"}
                         alt={match.name}
                         className="w-20 h-20 rounded-full object-cover"
                       />
@@ -60,7 +127,7 @@ const Matches = () => {
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="text-xl font-semibold">{match.name}</h3>
                           <Badge className="bg-primary/20 text-primary">
-                            {Math.round((sharedMovieIds.length / Math.max(currentUserMovies.length, match.favoriteMovies.length)) * 100)}% Match
+                            {Math.round((sharedMovieIds.length / Math.max(currentUserMovies.length, theirFavorites.length || 1)) * 100)}% Match
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">{match.age} • {match.location}</p>

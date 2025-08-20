@@ -8,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Film, Heart, Mail, Lock, User } from "lucide-react";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, fetchSignInMethodsForEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -48,6 +49,25 @@ const Register = () => {
       if (cred.user && formData.name) {
         await updateProfile(cred.user, { displayName: formData.name });
       }
+      // Seed Firestore profile so user shows up in Swipe
+      try {
+        const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+        const favoriteMovies = Array.isArray(fav) ? fav : [];
+        await setDoc(
+          doc(db, "profiles", cred.user.uid),
+          {
+            name: formData.name || "",
+            age: "",
+            location: "",
+            bio: "",
+            avatar: "",
+            favoriteMovies,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch {}
       toast({ title: "Account created", description: "Welcome to Cinecrush!" });
     } catch (err: any) {
       toast({ title: "Registration failed", description: err?.message || "Please try again.", variant: "destructive" });
@@ -209,7 +229,26 @@ const Register = () => {
                 onClick={async () => {
                   try {
                     const provider = new GoogleAuthProvider();
-                    await signInWithPopup(auth, provider);
+                    const res = await signInWithPopup(auth, provider);
+                    // Ensure Firestore profile exists
+                    try {
+                      const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+                      const favoriteMovies = Array.isArray(fav) ? fav : [];
+                      await setDoc(
+                        doc(db, "profiles", res.user.uid),
+                        {
+                          name: res.user.displayName || "",
+                          age: "",
+                          location: "",
+                          bio: "",
+                          avatar: res.user.photoURL || "",
+                          favoriteMovies,
+                          createdAt: serverTimestamp(),
+                          updatedAt: serverTimestamp(),
+                        },
+                        { merge: true }
+                      );
+                    } catch {}
                     toast({ title: "Signed in with Google" });
                   } catch (err: any) {
                     toast({ title: "Google sign-in failed", description: err?.message || "Please try again.", variant: "destructive" });

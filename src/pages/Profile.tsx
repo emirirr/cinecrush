@@ -17,6 +17,7 @@ type ProfileData = {
   age: string;
   location: string;
   bio: string;
+  avatar: string;
 };
 
 const defaultProfile: ProfileData = {
@@ -24,6 +25,7 @@ const defaultProfile: ProfileData = {
   age: "",
   location: "",
   bio: "",
+  avatar: "",
 };
 
 const Profile = () => {
@@ -84,17 +86,34 @@ const Profile = () => {
       const user = auth.currentUser;
       if (user) {
         const ref = doc(db, "profiles", user.uid);
-        await setDoc(ref, { ...profile, updatedAt: serverTimestamp() }, { merge: true });
-        if (profile.name && user.displayName !== profile.name) {
-          await updateAuthProfile(user, { displayName: profile.name });
+        // also sync favoriteMovies from localStorage if present
+        let favoriteMovies: string[] = [];
+        try {
+          const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+          if (Array.isArray(fav)) favoriteMovies = fav;
+        } catch {}
+        // ensure createdAt on first write
+        let payload: any = { ...profile, favoriteMovies, updatedAt: serverTimestamp() };
+        try {
+          const existing = await getDoc(ref);
+          if (!existing.exists()) {
+            payload.createdAt = serverTimestamp();
+          }
+        } catch {}
+        await setDoc(ref, payload, { merge: true });
+        // Keep Auth profile in sync (displayName + photoURL)
+        const desiredDisplayName = profile.name || undefined;
+        const desiredPhotoURL = profile.avatar || undefined;
+        if ((desiredDisplayName && user.displayName !== desiredDisplayName) || (desiredPhotoURL && user.photoURL !== desiredPhotoURL)) {
+          await updateAuthProfile(user, { displayName: desiredDisplayName, photoURL: desiredPhotoURL });
         }
         toast({ title: "Profile updated", description: "Cloud sync complete." });
         return;
       }
       toast({ title: "Profile saved locally", description: "Changes will sync after you sign in." });
     } catch (err: any) {
-      // If Firestore or Auth fails, keep local persistence and inform user
-      toast({ title: "Saved locally", description: "Couldn't sync to cloud right now. We'll retry later.", });
+      console.error("Profile save failed:", err);
+      toast({ title: "Cloud sync failed", description: err?.message || "Saved locally; will retry later.", variant: "destructive" });
     }
   };
 
@@ -119,6 +138,19 @@ const Profile = () => {
             <CardTitle>About You</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <img
+                src={profile.avatar || "/placeholder.svg"}
+                alt="Avatar preview"
+                className="w-16 h-16 rounded-full object-cover border"
+              />
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="avatar">Avatar URL</Label>
+                  <Input id="avatar" name="avatar" value={profile.avatar} onChange={handleChange} placeholder="https://…" />
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">Display Name</Label>

@@ -2,9 +2,22 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, X, Info, MapPin, Star } from "lucide-react";
-import { mockUsers, mockMovies, getMoviesByIds, getSharedMovies, calculateMatchScore, User } from "@/data/mockMovies";
+import { Heart, X, MapPin, Star } from "lucide-react";
+import { getMoviesByIds, getSharedMovies, calculateMatchScore } from "@/data/mockMovies";
 import MovieCard from "@/components/shared/MovieCard";
+import { auth, db } from "@/lib/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import { getMovieByImdbId, AppMovie } from "@/lib/omdb";
+
+type SwipeUser = {
+  id: string;
+  name: string;
+  age?: number | string;
+  bio?: string;
+  avatar?: string;
+  favoriteMovies?: string[];
+  location?: string;
+};
 
 const SwipeMatch = () => {
   const [currentUserIndex, setCurrentUserIndex] = useState(0);
@@ -12,17 +25,78 @@ const SwipeMatch = () => {
   const [passedUsers, setPassedUsers] = useState<string[]>([]);
   const [matches, setMatches] = useState<string[]>([]);
   const [showMatch, setShowMatch] = useState(false);
-  const [newMatchUser, setNewMatchUser] = useState<User | null>(null);
+  const [newMatchUser, setNewMatchUser] = useState<SwipeUser | null>(null);
+  const [remoteUsers, setRemoteUsers] = useState<SwipeUser[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [includeSelfForDebug, setIncludeSelfForDebug] = useState<boolean>(false);
+  const [displayMovies, setDisplayMovies] = useState<AppMovie[]>([]);
 
-  // Mock current user's favorite movies (in real app, this would come from auth/profile)
-  const currentUserMovies = ["1", "3", "4", "6"]; // Inception, Dark Knight, Interstellar, Blade Runner
+  // Current user's favorite movies
+  let currentUserMovies: string[] = [];
+  try {
+    const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+    if (Array.isArray(fav)) currentUserMovies = fav;
+  } catch {}
 
-  const availableUsers = mockUsers.filter(user => 
+  // Load real users from Firestore profiles (real-time)
+  useEffect(() => {
+    setIsLoading(true);
+    const unsub = onSnapshot(collection(db, "profiles"), (snap) => {
+      const users: SwipeUser[] = snap.docs.map(d => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          name: (data?.name || data?.displayName || "User").toString(),
+          age: data?.age,
+          bio: data?.bio || "",
+          avatar: data?.avatar || "",
+          favoriteMovies: Array.isArray(data?.favoriteMovies) ? data.favoriteMovies : [],
+          location: data?.location || "",
+        } as SwipeUser;
+      });
+      setRemoteUsers(users);
+      setIsLoading(false);
+    }, () => {
+      setRemoteUsers([]);
+      setIsLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const uid = auth.currentUser?.uid;
+  const baseUsers = includeSelfForDebug ? remoteUsers : remoteUsers.filter(u => u.id !== uid);
+  const availableUsers = baseUsers.filter(user => 
     !likedUsers.includes(user.id) && 
     !passedUsers.includes(user.id)
   );
 
   const currentUser = availableUsers[currentUserIndex];
+
+  // Resolve their favorite movies using mock first, then OMDb for unknown ids
+  useEffect(() => {
+    let active = true;
+    const theirFavs: string[] = Array.isArray(currentUser?.favoriteMovies)
+      ? (currentUser!.favoriteMovies as string[])
+      : [];
+    const resolve = async () => {
+      try {
+        const mock = getMoviesByIds(theirFavs);
+        const mockIds = new Set(mock.map(m => m.id));
+        const remain = Math.max(0, 6 - mock.length);
+        const unknown = theirFavs.filter(id => !mockIds.has(id)).slice(0, remain);
+        const fromOmdb = await Promise.all(
+          unknown.map(id => getMovieByImdbId(id).catch(() => null))
+        );
+        const omdbMovies = (fromOmdb.filter(Boolean) as AppMovie[]).slice(0, remain);
+        const combined: AppMovie[] = [...(mock as any[]), ...omdbMovies].slice(0, 6);
+        if (active) setDisplayMovies(combined as AppMovie[]);
+      } catch {
+        if (active) setDisplayMovies([]);
+      }
+    };
+    resolve();
+    return () => { active = false; };
+  }, [currentUser?.id, JSON.stringify(currentUser?.favoriteMovies || [])]);
 
   const handleLike = () => {
     if (!currentUser) return;
@@ -80,6 +154,18 @@ const SwipeMatch = () => {
     setNewMatchUser(null);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🎬</div>
+          <h2 className="text-2xl font-bold mb-2">Loading users…</h2>
+          <p className="text-muted-foreground mb-6">Fetching nearby cinephiles</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -96,15 +182,23 @@ const SwipeMatch = () => {
           }}>
             Start Over
           </Button>
+          <div className="mt-4">
+            <Button variant="outline" onClick={() => setIncludeSelfForDebug(v => !v)}>
+              {includeSelfForDebug ? 'Hide Myself' : 'Show Myself (Test)'}
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
-  const userMovies = getMoviesByIds(currentUser.favoriteMovies);
-  const sharedMovieIds = getSharedMovies(currentUserMovies, currentUser.favoriteMovies);
+  const theirFavorites = currentUser.favoriteMovies || [];
+  const sharedMovieIds = getSharedMovies(currentUserMovies, theirFavorites);
   const sharedMovies = getMoviesByIds(sharedMovieIds);
-  const matchScore = calculateMatchScore(currentUserMovies, currentUser.favoriteMovies);
+  const denominator = new Set([...(currentUserMovies || []), ...(theirFavorites || [])]).size;
+  const matchScore = denominator > 0 ? calculateMatchScore(currentUserMovies, theirFavorites) : 0;
+
+  
 
   return (
     <div className="min-h-screen py-8 px-4">
@@ -123,7 +217,7 @@ const SwipeMatch = () => {
             {/* User Image */}
             <div 
               className="h-1/2 bg-cover bg-center relative"
-              style={{ backgroundImage: `url(${currentUser.avatar})` }}
+              style={{ backgroundImage: `url(${currentUser.avatar || "/placeholder.svg"})` }}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               
@@ -136,10 +230,10 @@ const SwipeMatch = () => {
 
               {/* User Info Overlay */}
               <div className="absolute bottom-4 left-4 text-white">
-                <h2 className="text-2xl font-bold">{currentUser.name}, {currentUser.age}</h2>
+                <h2 className="text-2xl font-bold">{currentUser.name}{currentUser.age ? `, ${currentUser.age}` : ""}</h2>
                 <div className="flex items-center mt-1">
                   <MapPin className="h-4 w-4 mr-1" />
-                  <span className="text-sm">{currentUser.location}</span>
+                  <span className="text-sm">{currentUser.location || ""}</span>
                 </div>
               </div>
             </div>
@@ -174,7 +268,7 @@ const SwipeMatch = () => {
                 <div>
                   <h3 className="font-semibold mb-2">Their Favorite Movies</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {userMovies.slice(0, 6).map(movie => (
+                    {displayMovies.map(movie => (
                       <div key={movie.id} className="relative">
                         <img 
                           src={movie.poster} 
@@ -240,7 +334,7 @@ const SwipeMatch = () => {
               
               <div className="flex justify-center space-x-4 mb-6">
                 <img 
-                  src={newMatchUser.avatar} 
+                  src={newMatchUser.avatar || "/placeholder.svg"} 
                   alt={newMatchUser.name}
                   className="w-16 h-16 rounded-full object-cover"
                 />
@@ -264,6 +358,30 @@ const SwipeMatch = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+      
+      {/* Users Nearby List */}
+      {availableUsers.length > 0 && (
+        <div className="max-w-md mx-auto mt-10">
+          <h3 className="text-center font-semibold mb-3">Users Nearby</h3>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            {availableUsers.slice(0, 12).map((u, idx) => (
+              <button
+                key={u.id}
+                onClick={() => setCurrentUserIndex(idx)}
+                className="text-left"
+              >
+                <img
+                  src={u.avatar || "/placeholder.svg"}
+                  alt={u.name}
+                  className="w-full h-20 object-cover rounded-lg"
+                />
+                <div className="text-sm font-medium truncate mt-1">{u.name || "User"}</div>
+                <div className="text-xs text-muted-foreground truncate">{u.location || ""}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

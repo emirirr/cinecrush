@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Film, Heart, Mail, Lock } from "lucide-react";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -24,7 +25,21 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const cred = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      // Ensure profile exists
+      try {
+        const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+        const favoriteMovies = Array.isArray(fav) ? fav : [];
+        await setDoc(
+          doc(db, "profiles", cred.user.uid),
+          {
+            name: cred.user.displayName || "",
+            updatedAt: serverTimestamp(),
+            favoriteMovies,
+          },
+          { merge: true }
+        );
+      } catch {}
       toast({ title: "Signed in", description: "Welcome back!" });
       const params = new URLSearchParams(location.search);
       const redirect = params.get("redirect");
@@ -155,7 +170,22 @@ const Login = () => {
                 onClick={async () => {
                   try {
                     const provider = new GoogleAuthProvider();
-                    await signInWithPopup(auth, provider);
+                    const res = await signInWithPopup(auth, provider);
+                    // Ensure profile exists
+                    try {
+                      const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+                      const favoriteMovies = Array.isArray(fav) ? fav : [];
+                      await setDoc(
+                        doc(db, "profiles", res.user.uid),
+                        {
+                          name: res.user.displayName || "",
+                          avatar: res.user.photoURL || "",
+                          updatedAt: serverTimestamp(),
+                          favoriteMovies,
+                        },
+                        { merge: true }
+                      );
+                    } catch {}
                     toast({ title: "Signed in with Google" });
                     const params = new URLSearchParams(location.search);
                     const redirect = params.get("redirect");
