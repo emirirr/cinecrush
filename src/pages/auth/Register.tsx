@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Film, Heart, Mail, Lock, User } from "lucide-react";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile, fetchSignInMethodsForEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,7 +23,10 @@ const Register = () => {
     confirmPassword: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords don't match!");
@@ -29,8 +36,22 @@ const Register = () => {
       alert("Please accept the terms and conditions");
       return;
     }
-    // Handle registration logic here
-    console.log("Registration attempt:", formData);
+    try {
+      // If email already exists, guide user to login
+      const methods = await fetchSignInMethodsForEmail(auth, formData.email);
+      if (methods && methods.length > 0) {
+        toast({ title: "Email already in use", description: "Please sign in instead.", variant: "destructive" });
+        navigate(`/auth/login?email=${encodeURIComponent(formData.email)}`);
+        return;
+      }
+      const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      if (cred.user && formData.name) {
+        await updateProfile(cred.user, { displayName: formData.name });
+      }
+      toast({ title: "Account created", description: "Welcome to Cinecrush!" });
+    } catch (err: any) {
+      toast({ title: "Registration failed", description: err?.message || "Please try again.", variant: "destructive" });
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,7 +206,15 @@ const Register = () => {
               <Button 
                 variant="outline" 
                 className="w-full mt-4 border-neon hover:bg-primary/10"
-                onClick={() => console.log("Google OAuth")}
+                onClick={async () => {
+                  try {
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(auth, provider);
+                    toast({ title: "Signed in with Google" });
+                  } catch (err: any) {
+                    toast({ title: "Google sign-in failed", description: err?.message || "Please try again.", variant: "destructive" });
+                  }
+                }}
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path

@@ -1,6 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Film, MessageCircle, Search } from "lucide-react";
+import { Heart, Film, MessageCircle, Search, User } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const Navbar = () => {
   const location = useLocation();
@@ -9,9 +12,11 @@ const Navbar = () => {
     { path: "/discover", label: "Discover", icon: Search },
     { path: "/swipe", label: "Swipe", icon: Heart },
     { path: "/matches", label: "Matches", icon: MessageCircle },
+    { path: "/profile", label: "Profile", icon: User },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+  const { toast } = useToast();
 
   return (
     <>
@@ -63,6 +68,20 @@ const Navbar = () => {
                   Join Now
                 </Button>
               </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await signOut(auth);
+                    toast({ title: "Signed out" });
+                  } catch (err: any) {
+                    toast({ title: "Sign out failed", description: err?.message || "Please try again.", variant: "destructive" });
+                  }
+                }}
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -72,9 +91,9 @@ const Navbar = () => {
       <div className="h-16 md:hidden" />
 
       {/* Mobile Bottom Navbar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-card/80 backdrop-blur-lg">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-card/80 backdrop-blur-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-3 gap-2 h-16">
+          <div className="grid grid-cols-4 gap-2 h-16">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);

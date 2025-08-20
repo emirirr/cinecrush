@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,24 @@ const Discover = () => {
   const [selectedGenre, setSelectedGenre] = useState("all");
   const [sortBy, setSortBy] = useState("rating");
   const [favoriteMovies, setFavoriteMovies] = useState<string[]>([]);
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cinecrush:favorites");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setFavoriteMovies(parsed);
+      }
+    } catch {}
+  }, []);
+
+  // Persist favorites when changed
+  useEffect(() => {
+    try {
+      localStorage.setItem("cinecrush:favorites", JSON.stringify(favoriteMovies));
+    } catch {}
+  }, [favoriteMovies]);
 
   // Get all unique genres
   const allGenres = Array.from(

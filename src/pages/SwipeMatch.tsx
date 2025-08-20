@@ -31,7 +31,7 @@ const SwipeMatch = () => {
     setLikedUsers(newLikedUsers);
 
     // Simulate match (in real app, check if other user also liked)
-    const isMatch = Math.random() > 0.6; // 40% chance of match for demo
+    const isMatch = Math.random() > 0.6; // demo
     if (isMatch) {
       setMatches([...matches, currentUser.id]);
       setNewMatchUser(currentUser);
@@ -40,6 +40,26 @@ const SwipeMatch = () => {
 
     nextUser();
   };
+  // Load persisted swipe state
+  useEffect(() => {
+    try {
+      const liked = JSON.parse(localStorage.getItem("cinecrush:liked") || "[]");
+      const passed = JSON.parse(localStorage.getItem("cinecrush:passed") || "[]");
+      const ms = JSON.parse(localStorage.getItem("cinecrush:matches") || "[]");
+      if (Array.isArray(liked)) setLikedUsers(liked);
+      if (Array.isArray(passed)) setPassedUsers(passed);
+      if (Array.isArray(ms)) setMatches(ms);
+    } catch {}
+  }, []);
+
+  // Persist swipe state
+  useEffect(() => {
+    try {
+      localStorage.setItem("cinecrush:liked", JSON.stringify(likedUsers));
+      localStorage.setItem("cinecrush:passed", JSON.stringify(passedUsers));
+      localStorage.setItem("cinecrush:matches", JSON.stringify(matches));
+    } catch {}
+  }, [likedUsers, passedUsers, matches]);
 
   const handlePass = () => {
     if (!currentUser) return;

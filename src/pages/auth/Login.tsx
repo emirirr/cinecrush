@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Film, Heart, Mail, Lock } from "lucide-react";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,16 +16,48 @@ const Login = () => {
     email: "",
     password: ""
   });
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", formData);
+    try {
+      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      toast({ title: "Signed in", description: "Welcome back!" });
+      const params = new URLSearchParams(location.search);
+      const redirect = params.get("redirect");
+      navigate(redirect || "/");
+    } catch (err: any) {
+      toast({ title: "Sign in failed", description: err?.message || "Please try again.", variant: "destructive" });
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  // Prefill email from query param when redirected from register
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const email = params.get("email");
+    if (email) {
+      setFormData((prev) => ({ ...prev, email }));
+    }
+  }, [location.search]);
+
+  // If already authenticated, redirect away from login
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const redirect = params.get("redirect");
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigate(redirect || "/", { replace: true });
+      }
+    });
+    return () => unsub();
+  }, [location.search, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-purple-900/20 to-pink-900/20">
@@ -117,7 +152,18 @@ const Login = () => {
               <Button 
                 variant="outline" 
                 className="w-full mt-4 border-neon hover:bg-primary/10"
-                onClick={() => console.log("Google OAuth")}
+                onClick={async () => {
+                  try {
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(auth, provider);
+                    toast({ title: "Signed in with Google" });
+                    const params = new URLSearchParams(location.search);
+                    const redirect = params.get("redirect");
+                    navigate(redirect || "/");
+                  } catch (err: any) {
+                    toast({ title: "Google sign-in failed", description: err?.message || "Please try again.", variant: "destructive" });
+                  }
+                }}
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path

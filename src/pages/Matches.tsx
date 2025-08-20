@@ -1,12 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Heart, MessageCircle, Calendar, Star } from "lucide-react";
 import { mockUsers, mockMovies, getMoviesByIds, getSharedMovies } from "@/data/mockMovies";
 
 const Matches = () => {
   // Mock matches data (in real app, this would come from user's matches)
-  const userMatches = mockUsers.slice(0, 3);
+  const userMatches = mockUsers.filter(u => (JSON.parse(localStorage.getItem("cinecrush:matches") || "[]") as string[]).includes(u.id)).slice(0, 10);
   const currentUserMovies = ["1", "3", "4", "6"]; // Mock current user's movies
 
   if (userMatches.length === 0) {
@@ -18,9 +19,9 @@ const Matches = () => {
           <p className="text-muted-foreground mb-6">
             Start swiping to find people who share your movie taste!
           </p>
-          <Button className="btn-neon">
-            Start Swiping
-          </Button>
+          <Link to="/swipe">
+            <Button className="btn-neon">Start Swiping</Button>
+          </Link>
         </div>
       </div>
     );
@@ -147,10 +148,12 @@ const Matches = () => {
           <p className="text-muted-foreground mb-4">
             Keep swiping to find more movie lovers in your area
           </p>
-          <Button className="btn-neon">
-            <Heart className="h-4 w-4 mr-2" />
-            Continue Swiping
-          </Button>
+          <Link to="/swipe">
+            <Button className="btn-neon">
+              <Heart className="h-4 w-4 mr-2" />
+              Continue Swiping
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

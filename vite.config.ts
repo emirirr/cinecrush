@@ -26,12 +26,24 @@ export default defineConfig(() => ({
         icons: [
           { src: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
           { src: '/placeholder.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/placeholder.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' }
+          { src: '/placeholder.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/placeholder.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}']
-      }
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 }
+            }
+          }
+        ]
+      },
+      devOptions: { enabled: true }
     }),
   ].filter(Boolean),
   resolve: {
