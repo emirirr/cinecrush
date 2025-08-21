@@ -104,8 +104,15 @@ const Profile = () => {
         // Keep Auth profile in sync (displayName + photoURL)
         const desiredDisplayName = profile.name || undefined;
         const desiredPhotoURL = profile.avatar || undefined;
-        if ((desiredDisplayName && user.displayName !== desiredDisplayName) || (desiredPhotoURL && user.photoURL !== desiredPhotoURL)) {
-          await updateAuthProfile(user, { displayName: desiredDisplayName, photoURL: desiredPhotoURL });
+        const safePhotoURL = desiredPhotoURL && desiredPhotoURL.length <= 2048 && /^(https?:)\/\//.test(desiredPhotoURL)
+          ? desiredPhotoURL
+          : undefined; // too long or invalid → don't update Auth photoURL
+        if ((desiredDisplayName && user.displayName !== desiredDisplayName) || (safePhotoURL && user.photoURL !== safePhotoURL)) {
+          try {
+            await updateAuthProfile(user, { displayName: desiredDisplayName, photoURL: safePhotoURL });
+          } catch (e) {
+            // Ignore invalid photoURL errors; Firestore already has avatar
+          }
         }
         toast({ title: "Profile updated", description: "Cloud sync complete." });
         return;

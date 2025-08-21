@@ -6,7 +6,8 @@ import { Heart, X, MapPin, Star } from "lucide-react";
 import { getMoviesByIds, getSharedMovies, calculateMatchScore } from "@/data/mockMovies";
 import MovieCard from "@/components/shared/MovieCard";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { getMovieByImdbId, AppMovie } from "@/lib/omdb";
 
 type SwipeUser = {
@@ -59,6 +60,35 @@ const SwipeMatch = () => {
     }, () => {
       setRemoteUsers([]);
       setIsLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Ensure current user has a profile document (auto-create minimal one)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) return;
+      try {
+        const ref = doc(db, "profiles", u.uid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          let favoriteMovies: string[] = [];
+          try {
+            const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
+            if (Array.isArray(fav)) favoriteMovies = fav;
+          } catch {}
+          await setDoc(ref, {
+            name: u.displayName || "",
+            avatar: u.photoURL || "",
+            bio: "",
+            age: "",
+            location: "",
+            favoriteMovies,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        }
+      } catch {}
     });
     return () => unsub();
   }, []);
