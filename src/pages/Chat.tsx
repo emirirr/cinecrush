@@ -174,7 +174,7 @@ const Chat = () => {
         </div>
 
         {/* Composer */}
-        <div className="sticky bottom-0 bg-background/90 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-t pb-[env(safe-area-inset-bottom)]">
+        <div className="sticky bottom-16 md:bottom-0 bg-background/90 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-t pb-[env(safe-area-inset-bottom)]">
           <div className="px-3 md:px-4 py-2 md:py-3 flex items-center gap-2">
             <Input
               placeholder="Message..."
