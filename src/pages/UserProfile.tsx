@@ -95,7 +95,7 @@ const UserProfile = () => {
             </div>
 
             <div className="mt-6 flex gap-2">
-              <Button className="btn-neon" onClick={() => navigate(`/chat?u=${user.id}`)}>Send Message</Button>
+              <Button className="btn-neon" onClick={() => navigate(`/chat?u=${user.id}&n=${encodeURIComponent(user.name || '')}&a=${encodeURIComponent(user.avatar || '')}`)}>Send Message</Button>
               <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
             </div>
           </CardContent>

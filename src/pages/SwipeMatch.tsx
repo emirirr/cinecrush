@@ -451,7 +451,10 @@ const SwipeMatch = () => {
 
               <div className="space-y-3">
                 <Button className="w-full btn-neon" onClick={() => {
-                  if (newMatchUser?.id) navigate(`/chat?u=${newMatchUser.id}`)
+                  if (newMatchUser?.id) {
+                    const q = `/chat?u=${newMatchUser.id}&n=${encodeURIComponent(newMatchUser.name || '')}&a=${encodeURIComponent(newMatchUser.avatar || '')}`;
+                    navigate(q);
+                  }
                 }}>
                   Send Message
                 </Button>

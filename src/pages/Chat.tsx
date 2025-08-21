@@ -23,6 +23,8 @@ function getChatId(a: string, b: string) {
 const Chat = () => {
   const [params] = useSearchParams();
   const peerId = params.get("u") || "";
+  const peerNameParam = params.get("n") || "";
+  const peerAvatarParam = params.get("a") || "";
   const [myId, setMyId] = useState<string>(auth.currentUser?.uid || "");
   const chatId = useMemo(() => (myId && peerId ? getChatId(myId, peerId) : ""), [myId, peerId]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -30,7 +32,7 @@ const Chat = () => {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [peer, setPeer] = useState<{ name: string; avatar: string } | null>(null);
+  const [peer, setPeer] = useState<{ name: string; avatar: string } | null>({ name: peerNameParam, avatar: peerAvatarParam });
 
   // Keep auth user in sync (handles initial null -> user)
   useEffect(() => {
@@ -52,39 +54,48 @@ const Chat = () => {
             const d = snap.data() as any;
             setPeer({ name: d?.name || "", avatar: d?.avatar || "" });
           } else {
-            setPeer({ name: "", avatar: "" });
+            setPeer((p) => p || { name: peerNameParam, avatar: peerAvatarParam });
           }
         }
       } catch {
-        if (active) setPeer({ name: "", avatar: "" });
+        if (active) setPeer((p) => p || { name: peerNameParam, avatar: peerAvatarParam });
       }
     };
     load();
     return () => { active = false };
-  }, [peerId]);
+  }, [peerId, peerNameParam, peerAvatarParam]);
 
   useEffect(() => {
-    if (!chatId) return;
-    // Ensure a chat doc exists (metadata scope for future)
-    (async () => {
-      const ref = doc(db, "chats", chatId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        await setDoc(ref, { createdAt: serverTimestamp(), members: [myId, peerId] }, { merge: true });
-      }
-    })();
+    if (!chatId || !myId || !peerId) return;
+    // Create/merge chat doc without reading first (avoids permission-denied before members exist)
+    const ref = doc(db, "chats", chatId);
+    setDoc(ref, { createdAt: serverTimestamp(), members: [myId, peerId] }, { merge: true }).catch(() => {});
   }, [chatId, myId, peerId]);
 
   useEffect(() => {
-    if (!chatId) return;
-    const q = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "asc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Message[];
-      setMessages(list);
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 0);
-    });
-    return () => unsub();
-  }, [chatId]);
+    if (!chatId || !myId || !peerId) return;
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    const start = async () => {
+      // Ensure chat exists before subscribing (in case rules require members)
+      try {
+        const ref = doc(db, "chats", chatId);
+        await setDoc(ref, { createdAt: serverTimestamp(), members: [myId, peerId] }, { merge: true });
+      } catch {}
+      if (cancelled) return;
+      const q = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "asc"));
+      unsub = onSnapshot(q, (snap) => {
+        const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Message[];
+        setMessages(list);
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 0);
+      }, (err) => {
+        // Swallow permission errors to avoid unhandled promise rejections
+        console.error(err);
+      });
+    };
+    start();
+    return () => { cancelled = true; if (unsub) unsub(); };
+  }, [chatId, myId, peerId]);
 
   const ensureChat = async () => {
     if (!chatId || !myId || !peerId) return false;
@@ -153,7 +164,7 @@ const Chat = () => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3 md:py-4 space-y-3 pb-24 md:pb-4">
           {messages.map(m => (
             <div key={m.id} className={`max-w-[75%] px-3 py-2 text-sm leading-relaxed ${m.senderId === myId ? 'ml-auto bg-primary text-primary-foreground rounded-2xl rounded-br-sm' : 'mr-auto bg-muted text-foreground rounded-2xl rounded-bl-sm'}`}>
               {m.text}
@@ -163,17 +174,22 @@ const Chat = () => {
         </div>
 
         {/* Composer */}
-        <div className="sticky bottom-0 bg-background/80 backdrop-blur border-t">
-          <div className="px-4 py-3 flex items-center gap-2">
+        <div className="sticky bottom-0 bg-background/90 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-t pb-[env(safe-area-inset-bottom)]">
+          <div className="px-3 md:px-4 py-2 md:py-3 flex items-center gap-2">
             <Input
               placeholder="Message..."
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-              className="rounded-full"
+              className="flex-1 min-w-0 h-12 md:h-11 rounded-full text-base md:text-sm px-4"
             />
-            <Button onClick={send} disabled={!text.trim() || !chatId} className="rounded-full px-4">
-              <Send className="h-4 w-4" />
+            <Button
+              onClick={send}
+              disabled={!text.trim() || !chatId}
+              className="rounded-full h-12 w-12 md:h-10 md:w-10 p-0"
+              aria-label="Send"
+            >
+              <Send className="h-5 w-5" />
             </Button>
           </div>
         </div>

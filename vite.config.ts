@@ -12,7 +12,8 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg'],
       manifest: {
         name: 'Cinecrush',
@@ -43,7 +44,8 @@ export default defineConfig(() => ({
           }
         ]
       },
-      devOptions: { enabled: true }
+      // Disable SW during dev HMR to reduce noisy workbox logs
+      devOptions: { enabled: false }
     }),
   ].filter(Boolean),
   resolve: {

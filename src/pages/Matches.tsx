@@ -195,7 +195,7 @@ const Matches = () => {
                     
                     {/* Action Buttons */}
                     <div className="flex gap-3">
-                      <Button className="btn-neon flex-1" onClick={() => navigate(`/chat?u=${match.id}`)}>
+                      <Button className="btn-neon flex-1" onClick={() => navigate(`/chat?u=${match.id}&n=${encodeURIComponent(match.name || '')}&a=${encodeURIComponent(match.avatar || '')}`)}>
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Send Message
                       </Button>
