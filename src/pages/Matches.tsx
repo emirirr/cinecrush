@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Heart, MessageCircle, Calendar, Star } from "lucide-react";
 import { getMoviesByIds, getSharedMovies } from "@/data/mockMovies";
@@ -21,6 +21,7 @@ type MatchUser = {
 const Matches = () => {
   const [userMatches, setUserMatches] = useState<MatchUser[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const navigate = useNavigate();
   let currentUserMovies: string[] = [];
   try {
     const fav = JSON.parse(localStorage.getItem("cinecrush:favorites") || "[]");
@@ -194,11 +195,11 @@ const Matches = () => {
                     
                     {/* Action Buttons */}
                     <div className="flex gap-3">
-                      <Button className="btn-neon flex-1">
+                      <Button className="btn-neon flex-1" onClick={() => navigate(`/chat?u=${match.id}`)}>
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Send Message
                       </Button>
-                      <Button variant="outline" className="border-neon">
+                      <Button variant="outline" className="border-neon" onClick={() => navigate(`/user/${match.id}`)}>
                         View Profile
                       </Button>
                     </div>

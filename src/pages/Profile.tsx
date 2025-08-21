@@ -11,6 +11,7 @@ import { mockMovies, getMoviesByIds } from "@/data/mockMovies";
 import { auth, db } from "@/lib/firebase";
 import { updateProfile as updateAuthProfile } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ProfileData = {
   name: string;
@@ -18,6 +19,7 @@ type ProfileData = {
   location: string;
   bio: string;
   avatar: string;
+  gender: string;
 };
 
 const defaultProfile: ProfileData = {
@@ -26,6 +28,7 @@ const defaultProfile: ProfileData = {
   location: "",
   bio: "",
   avatar: "",
+  gender: "",
 };
 
 const Profile = () => {
@@ -175,6 +178,20 @@ const Profile = () => {
             <div>
               <Label htmlFor="bio">About</Label>
               <Textarea id="bio" name="bio" value={profile.bio} onChange={handleChange} placeholder="Tell others about your movie taste, favorite directors, etc." rows={5} />
+            </div>
+
+            <div>
+              <Label htmlFor="gender">Gender</Label>
+              <Select value={profile.gender} onValueChange={(value) => setProfile((prev) => ({ ...prev, gender: value }))}>
+                <SelectTrigger id="gender">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex justify-end">

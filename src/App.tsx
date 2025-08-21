@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "@/components/shared/Navbar";
 import { initAnalytics } from "@/lib/firebase";
@@ -10,9 +10,12 @@ import Landing from "@/pages/Landing";
 import Discover from "@/pages/Discover";
 import SwipeMatch from "@/pages/SwipeMatch";
 import Matches from "@/pages/Matches";
+import Chat from "@/pages/Chat";
+import UserProfile from "@/pages/UserProfile";
 import Profile from "@/pages/Profile";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import ThemeProvider from "@/components/shared/ThemeProvider";
+import MessageNotifications from "@/components/shared/MessageNotifications";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
@@ -54,9 +57,10 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <HashRouter>
           <ThemeProvider>
           <div className="min-h-screen bg-background">
+            <MessageNotifications />
             {/* Simple install/update prompts */}
             {promptEvent && (
               <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-full px-4 py-2 shadow">
@@ -83,6 +87,8 @@ const App = () => {
                     <Route path="/discover" element={<Discover />} />
                     <Route path="/swipe" element={<SwipeMatch />} />
                     <Route path="/matches" element={<Matches />} />
+                    <Route path="/user/:id" element={<UserProfile />} />
+                    <Route path="/chat" element={<Chat />} />
                     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
@@ -92,7 +98,7 @@ const App = () => {
             </Routes>
           </div>
           </ThemeProvider>
-        </BrowserRouter>
+        </HashRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );

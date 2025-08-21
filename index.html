@@ -8,6 +8,7 @@
     <meta name="author" content="Cinecrush" />
     <meta name="theme-color" content="#111827" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="color-scheme" content="dark light" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -25,6 +26,18 @@
   </head>
 
   <body>
+    <script>
+      (function() {
+        // Redirect direct deep links to hash-based route for static hosting
+        try {
+          var hasHash = window.location.hash && window.location.hash.length > 1;
+          if (!hasHash && window.location.pathname !== '/') {
+            var path = window.location.pathname + window.location.search + window.location.hash;
+            window.location.replace('/#' + path);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

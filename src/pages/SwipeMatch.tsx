@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,8 @@ import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { getMovieByImdbId, AppMovie } from "@/lib/omdb";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useNavigate } from "react-router-dom";
 
 type SwipeUser = {
   id: string;
@@ -18,6 +21,7 @@ type SwipeUser = {
   avatar?: string;
   favoriteMovies?: string[];
   location?: string;
+  gender?: string;
 };
 
 const SwipeMatch = () => {
@@ -31,6 +35,13 @@ const SwipeMatch = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [includeSelfForDebug, setIncludeSelfForDebug] = useState<boolean>(false);
   const [displayMovies, setDisplayMovies] = useState<AppMovie[]>([]);
+  const [isMoviesLoading, setIsMoviesLoading] = useState<boolean>(false);
+  const navigate = useNavigate();
+
+  // Drag state for swipe gestures
+  const [dragging, setDragging] = useState<boolean>(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Current user's favorite movies
   let currentUserMovies: string[] = [];
@@ -53,6 +64,7 @@ const SwipeMatch = () => {
           avatar: data?.avatar || "",
           favoriteMovies: Array.isArray(data?.favoriteMovies) ? data.favoriteMovies : [],
           location: data?.location || "",
+          gender: (data?.gender || "").toString(),
         } as SwipeUser;
       });
       setRemoteUsers(users);
@@ -83,6 +95,7 @@ const SwipeMatch = () => {
             bio: "",
             age: "",
             location: "",
+            gender: "",
             favoriteMovies,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -94,10 +107,13 @@ const SwipeMatch = () => {
   }, []);
 
   const uid = auth.currentUser?.uid;
+  const myGender = remoteUsers.find(u => u.id === uid)?.gender || "";
   const baseUsers = includeSelfForDebug ? remoteUsers : remoteUsers.filter(u => u.id !== uid);
   const availableUsers = baseUsers.filter(user => 
     !likedUsers.includes(user.id) && 
-    !passedUsers.includes(user.id)
+    !passedUsers.includes(user.id) &&
+    // rule: male users should not match with male users
+    (myGender === 'male' ? (user.gender !== 'male') : true)
   );
 
   const currentUser = availableUsers[currentUserIndex];
@@ -110,6 +126,7 @@ const SwipeMatch = () => {
       : [];
     const resolve = async () => {
       try {
+        setIsMoviesLoading(true);
         const mock = getMoviesByIds(theirFavs);
         const mockIds = new Set(mock.map(m => m.id));
         const remain = Math.max(0, 6 - mock.length);
@@ -122,6 +139,8 @@ const SwipeMatch = () => {
         if (active) setDisplayMovies(combined as AppMovie[]);
       } catch {
         if (active) setDisplayMovies([]);
+      } finally {
+        if (active) setIsMoviesLoading(false);
       }
     };
     resolve();
@@ -172,11 +191,13 @@ const SwipeMatch = () => {
   };
 
   const nextUser = () => {
-    if (currentUserIndex < availableUsers.length - 1) {
-      setCurrentUserIndex(currentUserIndex + 1);
-    } else {
-      setCurrentUserIndex(0); // Reset for demo
-    }
+    setDragStart(null);
+    setDragOffset({ x: 0, y: 0 });
+    setDragging(false);
+    setCurrentUserIndex((idx) => {
+      if (idx < availableUsers.length - 1) return idx + 1;
+      return 0; // Reset for demo
+    });
   };
 
   const closeMatchModal = () => {
@@ -230,6 +251,33 @@ const SwipeMatch = () => {
 
   
 
+  // Swipe gesture handlers
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    setDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging || !dragStart) return;
+    setDragOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const onPointerUp = () => {
+    const threshold = 120;
+    if (dragOffset.x > threshold) {
+      handleLike();
+    } else if (dragOffset.x < -threshold) {
+      handlePass();
+    } else {
+      setDragStart(null);
+      setDragOffset({ x: 0, y: 0 });
+      setDragging(false);
+    }
+  };
+
+  const rotation = Math.max(-15, Math.min(15, dragOffset.x / 10));
+
   return (
     <div className="min-h-screen py-8 px-4">
       <div className="max-w-md mx-auto">
@@ -242,7 +290,16 @@ const SwipeMatch = () => {
         </div>
 
         {/* User Card */}
-        <div className="swipe-card mb-6" style={{ height: '600px' }}>
+        <div
+          className="swipe-card mb-6 h-[70vh] max-h-[720px] select-none"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{
+            transform: `translate(${dragOffset.x}px, ${dragOffset.y}px) rotate(${rotation}deg)`,
+          }}
+        >
           <div className="relative h-full">
             {/* User Image */}
             <div 
@@ -298,7 +355,10 @@ const SwipeMatch = () => {
                 <div>
                   <h3 className="font-semibold mb-2">Their Favorite Movies</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {displayMovies.map(movie => (
+                    {isMoviesLoading && Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="w-full h-20 rounded-lg" />
+                    ))}
+                    {!isMoviesLoading && displayMovies.map(movie => (
                       <div key={movie.id} className="relative">
                         <img 
                           src={movie.poster} 
@@ -320,6 +380,21 @@ const SwipeMatch = () => {
                 </div>
               </div>
             </div>
+            {/* Like/Nope indicators during drag */}
+            {dragging && (
+              <div className="pointer-events-none absolute inset-0">
+                {dragOffset.x > 40 && (
+                  <div className="absolute top-6 left-6 rotate-[-12deg] border-2 border-green-500 text-green-500 font-extrabold tracking-widest px-3 py-1 rounded">
+                    LIKE
+                  </div>
+                )}
+                {dragOffset.x < -40 && (
+                  <div className="absolute top-6 right-6 rotate-[12deg] border-2 border-red-500 text-red-500 font-extrabold tracking-widest px-3 py-1 rounded">
+                    NOPE
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -353,8 +428,8 @@ const SwipeMatch = () => {
 
       {/* Match Modal */}
       {showMatch && newMatchUser && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={closeMatchModal}>
+          <Card className="max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <CardContent className="p-8 text-center">
               <div className="text-6xl mb-4">🎉</div>
               <h2 className="text-2xl font-bold mb-2 text-neon">It's a Match!</h2>
@@ -375,7 +450,9 @@ const SwipeMatch = () => {
               </div>
 
               <div className="space-y-3">
-                <Button className="w-full btn-neon">
+                <Button className="w-full btn-neon" onClick={() => {
+                  if (newMatchUser?.id) navigate(`/chat?u=${newMatchUser.id}`)
+                }}>
                   Send Message
                 </Button>
                 <Button 
