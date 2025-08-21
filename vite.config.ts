@@ -12,7 +12,7 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg'],
       manifest: {
@@ -32,6 +32,8 @@ export default defineConfig(() => ({
         ]
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}'],
         runtimeCaching: [
           {

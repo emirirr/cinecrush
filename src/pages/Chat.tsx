@@ -164,7 +164,7 @@ const Chat = () => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3 md:py-4 space-y-3 pb-24 md:pb-4">
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3 md:py-4 space-y-3 pb-40 md:pb-4">
           {messages.map(m => (
             <div key={m.id} className={`max-w-[75%] px-3 py-2 text-sm leading-relaxed ${m.senderId === myId ? 'ml-auto bg-primary text-primary-foreground rounded-2xl rounded-br-sm' : 'mr-auto bg-muted text-foreground rounded-2xl rounded-bl-sm'}`}>
               {m.text}
