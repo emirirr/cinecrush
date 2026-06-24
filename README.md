@@ -1,59 +1,61 @@
-# Cinecrush
+<div align="center">
 
-## Project info
+# 🎬 Cinecrush
 
-This repository contains the Cinecrush web app.
+**Film zevkine göre eşleş, sohbet et, birlikte izleyeceğin filmi keşfet**
 
-## How can I edit this code?
+![React](https://img.shields.io/badge/React-18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![Tailwind](https://img.shields.io/badge/Tailwind-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-There are several ways of editing your application.
+</div>
 
-**Develop locally**
+---
 
-Clone this repo and work locally using your preferred IDE.
+## 📋 Hakkında
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Cinecrush; film zevkini sosyal bir deneyime dönüştüren bir **eşleşme ve keşif** uygulamasıdır. Filmleri kaydır (swipe), benzer zevklere sahip kişilerle eşleş, sohbet et ve birlikte izleyeceğin yapımları keşfet.
 
-Follow these steps:
+## ✨ Özellikler
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- **Swipe & Eşleşme** — Filmleri ve kullanıcıları kaydırarak keşfet
+- **Film keşfi** — Detaylı film sayfaları ve öneriler
+- **Eşleşmeler** — Ortak zevke sahip kullanıcılarla bağlantı
+- **Sohbet** — Eşleşmelerle gerçek zamanlı mesajlaşma
+- **Profil** — Kişisel film tercihleri ve profil yönetimi
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 🛠️ Teknoloji Yığını
 
-# Step 3: Install the necessary dependencies.
-npm i
+| Katman | Teknolojiler |
+|--------|--------------|
+| Arayüz | React 18, TypeScript, Tailwind CSS, shadcn/ui |
+| Build | Vite |
+| Veri & Kimlik | Firebase (Auth, Firestore) |
+| Yönlendirme | React Router |
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🚀 Kurulum
+
+```bash
+# Bağımlılıkları yükleyin
+npm install
+
+# Firebase yapılandırmasını ekleyin (.env)
+cp .env.example .env
+
+# Geliştirme sunucusunu başlatın
 npm run dev
+
+# Production build
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+## 👤 Geliştirici
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+**Emir Tiryaki** — Full Stack Developer
+🌐 [emirtiryaki.com](https://emirtiryaki.com) · 📧 info@emirtiryaki.com
 
-**Use GitHub Codespaces**
+## 📄 Lisans
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## Deploy
-
-You can deploy using any static hosting for Vite builds (e.g., Vercel, Netlify, Cloudflare Pages).
+MIT © Emir Tiryaki
