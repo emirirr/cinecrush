@@ -10,6 +10,8 @@
 ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
 ![Tailwind](https://img.shields.io/badge/Tailwind-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
+### 🔗 [**Canlı Demo → cinecrush-phi.vercel.app**](https://cinecrush-phi.vercel.app)
+
 </div>
 
 ---
