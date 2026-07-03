@@ -18,6 +18,12 @@
 
 Cinecrush; film zevkini sosyal bir deneyime dönüştüren bir **eşleşme ve keşif** uygulamasıdır. Filmleri kaydır (swipe), benzer zevklere sahip kişilerle eşleş, sohbet et ve birlikte izleyeceğin yapımları keşfet.
 
+## 📸 Ekran Görüntüleri
+
+| Ana Sayfa | Keşfet | Kayıt Ol |
+|:---:|:---:|:---:|
+| ![Ana Sayfa](docs/screenshots/landing.png) | ![Keşfet](docs/screenshots/discover.png) | ![Kayıt](docs/screenshots/register.png) |
+
 ## ✨ Özellikler
 
 - **Swipe & Eşleşme** — Filmleri ve kullanıcıları kaydırarak keşfet
@@ -41,15 +47,15 @@ Cinecrush; film zevkini sosyal bir deneyime dönüştüren bir **eşleşme ve ke
 # Bağımlılıkları yükleyin
 npm install
 
-# Firebase yapılandırmasını ekleyin (.env)
-cp .env.example .env
-
-# Geliştirme sunucusunu başlatın
+# Geliştirme sunucusunu başlatın (sıfır yapılandırma — Firebase ve film API'si hazır)
 npm run dev
 
 # Production build
 npm run build
 ```
+
+> İsteğe bağlı: Kendi OMDb API anahtarınızı kullanmak için `.env` dosyasına
+> `VITE_OMDB_API_KEY=...` ekleyebilirsiniz. Belirtilmezse gömülü demo anahtarı kullanılır.
 
 ## 👤 Geliştirici
 
