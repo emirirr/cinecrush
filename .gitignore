@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .claude/
+
+.vercel
+
+# Ortam değişkenleri
+.env
+.env.local
+.env*.local
